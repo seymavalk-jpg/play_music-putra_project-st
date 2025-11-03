@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Spotify-like Player — DiBawah Batu Nisan Kini</title>
+  <style>
+    :root{--accent:#1db954;--bg:#0b0b0d;--panel:rgba(255,255,255,0.03);--muted:rgba(255,255,255,0.6);--text:#e9eef1}
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial;background:linear-gradient(180deg,#000000,#0b0b10);color:var(--text);}
+
+    /* App layout - two columns like Spotify */
+    .app{display:grid;grid-template-columns:250px 1fr;gap:20px;height:100vh;padding:18px}
+
+    /* Sidebar (album list) */
+    .sidebar{background:var(--panel);border-radius:12px;padding:16px;overflow:auto}
+    .album-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .album{background:#0f0f12;border-radius:8px;padding:8px;display:flex;flex-direction:column;align-items:center;cursor:pointer}
+    .album img{width:100%;height:100px;object-fit:cover;border-radius:6px}
+    .album .name{margin-top:8px;font-size:13px;text-align:center}
+
+    /* Main player */
+    .main{display:flex;flex-direction:column;gap:18px}
+    .now{display:flex;gap:18px;align-items:center;background:rgba(255,255,255,0.02);padding:18px;border-radius:12px}
+    .cover{width:180px;height:180px;border-radius:12px;background-size:cover;background-position:center;flex:0 0 180px}
+    .meta{flex:1}
+    .title{font-size:20px;font-weight:700;margin:0}
+    .artist{color:var(--muted);margin-top:6px}
+
+    .controls{display:flex;flex-direction:column;align-items:center;gap:12px}
+    .buttons{display:flex;gap:18px;align-items:center}
+    .btn{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,0.04);border:none;color:var(--text);cursor:pointer}
+    .btn.primary{width:72px;height:72px;background:var(--accent);color:#000;font-weight:700}
+
+    .seek{width:100%;max-width:760px}
+    .seekbar{height:8px;background:rgba(255,255,255,0.06);border-radius:999px;position:relative;cursor:pointer}
+    .progress{height:100%;width:0;background:linear-gradient(90deg,var(--accent),#55d77c);border-radius:999px}
+    .timewrap{display:flex;justify-content:space-between;color:var(--muted);font-size:13px;width:100%;max-width:760px}
+
+    .visualizer{display:flex;align-items:flex-end;height:64px;gap:6px;margin-top:6px}
+    .bar{width:6px;height:20%;background:var(--accent);border-radius:4px;transform-origin:bottom;transition:height .12s linear}
+
+    /* Queue / playlist */
+    .playlist{background:var(--panel);border-radius:12px;padding:12px;overflow:auto}
+    .track{display:flex;align-items:center;gap:12px;padding:8px;border-radius:8px;cursor:pointer}
+    .track:hover{background:rgba(255,255,255,0.02)}
+    .track .num{width:28px;text-align:center;color:var(--muted)}
+    .track .tmeta{flex:1}
+    .track .tmeta .tname{font-size:14px}
+    .track .tmeta .tartist{color:var(--muted);font-size:12px}
+
+    /* bottom player fixed like spotify */
+    .fixedbar{position:fixed;left:0;right:0;bottom:0;height:86px;display:flex;align-items:center;justify-content:center;padding:10px 18px;background:linear-gradient(180deg,rgba(0,0,0,0.35),rgba(0,0,0,0.6));backdrop-filter:blur(8px)}
+    .bar-inner{width:100%;max-width:1100px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+
+    /* responsive */
+    @media (max-width:920px){.app{grid-template-columns:1fr;grid-auto-rows:auto}.sidebar{order:2}.fixedbar{height:110px}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <h3>Album</h3>
+      <div class="album-grid" id="albumGrid">
+        <!-- albums will be populated -->
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="now">
+        <div class="cover" id="mainCover" style="background-image:url('https://www.asiamediajournal.com/wp-content/uploads/2022/11/SAD-ANIME-PFP-Free-Download-420x420.jpg')"></div>
+        <div class="meta">
+          <h2 class="title" id="nowTitle">DiBawah Batu Nisan Kini</h2>
+          <div class="artist" id="nowArtist">— By Putra Project</div>
+
+          <div class="controls">
+            <div class="buttons">
+              <button class="btn" id="prev">⟮</button>
+              <button class="btn primary" id="playPause">▶</button>
+              <button class="btn" id="next">⟯</button>
+            </div>
+
+            <div class="seek">
+              <div class="seekbar" id="seekbar"><div class="progress" id="progress"></div></div>
+              <div class="timewrap"><div id="current">0:00</div><div id="duration">0:00</div></div>
+            </div>
+
+            <div class="visualizer" id="visualizer">
+              <!-- 20 bars -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="playlist" id="playlist">
+        <h4>Antrian / Playlist</h4>
+        <!-- tracks -->
+      </div>
+    </main>
+  </div>
+
+  <div class="fixedbar">
+    <div class="bar-inner">
+      <div style="display:flex;align-items:center;gap:12px">
+        <img id="miniCover" src="https://www.asiamediajournal.com/wp-content/uploads/2022/11/SAD-ANIME-PFP-Free-Download-420x420.jpg" alt="cover" style="width:56px;height:56px;border-radius:8px;object-fit:cover">
+        <div>
+          <div id="miniTitle">DiBawah Batu Nisan Kini</div>
+          <div style="color:var(--muted);font-size:13px">— YouTube</div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+        <div style="display:flex;gap:12px;align-items:center">
+          <button class="btn" id="fbPrev">⟮</button>
+          <button class="btn primary" id="fbPlay">▶</button>
+          <button class="btn" id="fbNext">⟯</button>
+        </div>
+        <div style="width:420px;max-width:60%">
+          <div class="seekbar" id="fbSeek"><div class="progress" id="fbProgress"></div></div>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:12px">
+        <label style="color:var(--muted)">Volume</label>
+        <input id="volume" type="range" min="0" max="100" value="80">
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden YouTube player for audio -->
+  <div id="player" style="position:fixed;left:-9999px;top:-9999px"></div>
+
+  <script>
+    // ---------- Data (playlist) ----------
+    const TRACKS = [
+      {id:'2HYaSzvwi4I', title:'DiBawah Batu Nisan Kini', artist:'By Putra Project', cover:'https://www.asiamediajournal.com/wp-content/uploads/2022/11/SAD-ANIME-PFP-Free-Download-420x420.jpg'},
+      // we can add placeholders — more tracks can be added by the user
+    ];
+
+    // populate album grid (using same image for demo)
+    const albumGrid = document.getElementById('albumGrid');
+    for(let i=0;i<6;i++){
+      const a = document.createElement('div'); a.className='album';
+      a.innerHTML = `<img src="https://www.asiamediajournal.com/wp-content/uploads/2022/11/SAD-ANIME-PFP-Free-Download-420x420.jpg"><div class="name">Album ${i+1}</div>`;
+      a.addEventListener('click', ()=>{ alert('Album demo — dalam versi production, klik khusus akan load tracks album ini.'); });
+      albumGrid.appendChild(a);
+    }
+
+    // ---------- Visualizer bars ----------
+    const visualizer = document.getElementById('visualizer');
+    const BARS = 20;
+    for(let i=0;i<BARS;i++){ const b = document.createElement('div'); b.className='bar'; visualizer.appendChild(b); }
+    const bars = Array.from(document.querySelectorAll('.bar'));
+
+    // ---------- YouTube IFrame API ----------
+    let tag=document.createElement('script'); tag.src='https://www.youtube.com/iframe_api'; document.head.appendChild(tag);
+    let player;
+    function onYouTubeIframeAPIReady(){
+      player = new YT.Player('player',{
+        height:'0',width:'0',videoId:TRACKS[0].id,playerVars:{controls:0,rel:0,modestbranding:1},
+        events:{onReady:onPlayerReady,onStateChange:onPlayerStateChange}
+      });
+    }
+    window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
+
+    // UI elements
+    const playPause = document.getElementById('playPause');
+    const fbPlay = document.getElementById('fbPlay');
+    const progress = document.getElementById('progress');
+    const fbProgress = document.getElementById('fbProgress');
+    const seekbar = document.getElementById('seekbar');
+    const fbSeek = document.getElementById('fbSeek');
+    const currentEl = document.getElementById('current');
+    const durationEl = document.getElementById('duration');
+    const miniTitle = document.getElementById('miniTitle');
+    const mainCover = document.getElementById('mainCover');
+    const miniCover = document.getElementById('miniCover');
+    const volumeInputs = document.querySelectorAll('#volume');
+
+    let index = 0; let duration = 0; let updater = null; let isPlaying=false;
+
+    function onPlayerReady(){
+      setVolume(volumeInputs[0].value);
+      setTimeout(()=>{ duration = player.getDuration() || 0; durationEl.textContent = formatTime(duration); },800);
+    }
+    function onPlayerStateChange(e){
+      if(e.data === YT.PlayerState.PLAYING){ isPlaying=true; setPlayUI(true); startUpdater(); startPseudoVisualizer(); }
+      else { isPlaying=false; setPlayUI(false); stopUpdater(); stopPseudoVisualizer(); }
+    }
+
+    function setPlayUI(play){
+      document.querySelectorAll('.primary').forEach(x=>{ x.textContent = play ? '❚❚' : '▶' });
+      fbPlay.textContent = play ? '❚❚' : '▶';
+    }
+
+    function startUpdater(){ stopUpdater(); updater = setInterval(()=>{ try{ const pos = player.getCurrentTime()||0; const dur = player.getDuration()||duration||0; const pct = dur>0 ? pos/dur*100 : 0; progress.style.width = pct+'%'; fbProgress.style.width = pct+'%'; currentEl.textContent = formatTime(pos); durationEl.textContent = formatTime(dur); }catch(e){} },250); }
+    function stopUpdater(){ if(updater) clearInterval(updater); updater=null }
+
+    function setVolume(v){ if(player) player.setVolume(Number(v)); }
+    volumeInputs.forEach(v=>v.addEventListener('input', ()=> setVolume(v.value)));
+
+    // play/pause handlers
+    playPause.addEventListener('click', ()=> togglePlay()); fbPlay.addEventListener('click', ()=> togglePlay());
+    function togglePlay(){ if(!player) return; const st = player.getPlayerState(); if(st === YT.PlayerState.PLAYING) player.pauseVideo(); else player.playVideo(); }
+
+    // prev/next (demo - single track)
+    document.getElementById('prev').addEventListener('click', ()=>{ seekRelative(-5); });
+    document.getElementById('next').addEventListener('click', ()=>{ seekRelative(5); });
+    document.getElementById('fbPrev').addEventListener('click', ()=>{ seekRelative(-5); });
+    document.getElementById('fbNext').addEventListener('click', ()=>{ seekRelative(5); });
+    function seekRelative(sec){ if(player) { try{ const t = Math.max(0, (player.getCurrentTime()||0) + sec); player.seekTo(t, true); }catch{} } }
+
+    // seekbars click
+    seekbar.addEventListener('click', (e)=>{ seekFromEvent(e, seekbar); });
+    fbSeek.addEventListener('click', (e)=>{ seekFromEvent(e, fbSeek); });
+    function seekFromEvent(e, el){ if(!player) return; const rect=el.getBoundingClientRect(); const pct=(e.clientX-rect.left)/rect.width; const dur = player.getDuration()||duration||0; if(dur>0) player.seekTo(pct*dur, true); }
+
+    function formatTime(s){ s=Math.floor(s||0); const m=Math.floor(s/60); const sec=s%60; return m+':'+String(sec).padStart(2,'0'); }
+
+    // load track (for now only one track in playlist)
+    function loadTrack(i){ index = i; const t = TRACKS[i]; miniTitle.textContent = t.title; document.getElementById('nowTitle').textContent = t.title; document.getElementById('nowArtist').textContent = t.artist; mainCover.style.backgroundImage = `url('${t.cover}')`; miniCover.src = t.cover; if(player) player.loadVideoById(t.id); }
+    loadTrack(0);
+
+    // ---------- Playlist UI ----------
+    const playlistEl = document.getElementById('playlist');
+    TRACKS.forEach((tr,i)=>{
+      const trEl = document.createElement('div'); trEl.className='track';
+      trEl.innerHTML = `<div class="num">${i+1}</div><div class="tmeta"><div class="tname">${tr.title}</div><div class="tartist">${tr.artist}</div></div>`;
+      trEl.addEventListener('click', ()=>{ loadTrack(i); if(player) player.playVideo(); });
+      playlistEl.appendChild(trEl);
+    });
+
+    // ---------- PSEUDO-Visualizer (since YouTube iframe audio is not accessible cross-origin) ----------
+    // IMPORTANT: Real audio-reactive visualizer requires an audio source you control (direct audio file or CORS-enabled stream) so Web Audio API can analyze it.
+    // Here we simulate the visualizer while the player is playing for the Spotify-like effect.
+
+    let visTimer=null;
+    function startPseudoVisualizer(){ if(visTimer) return; visTimer=setInterval(()=>{ bars.forEach(b=>{ const h = 20 + Math.random()*80; b.style.height = h + '%'; }); }, 120); }
+    function stopPseudoVisualizer(){ if(visTimer) clearInterval(visTimer); visTimer=null; bars.forEach(b=>b.style.height='20%'); }
+
+    // ---------- Limitations note (displayed in console) ----------
+    console.log('Catatan: Visualizer disimulasikan karena audio YouTube lewat iframe tidak menyediakan akses ke data audio. Untuk visualizer nyata, sediakan file audio (mp3) dengan CORS diizinkan atau host file di server Anda, lalu saya bisa menambahkan Web Audio API untuk sinkronisasi.')
+
+    // safety fallback if API fails
+    setTimeout(()=>{ if(!window.YT){ alert('YouTube API gagal dimuat. Pemutar masih dapat dibuka lewat link (buka di YouTube).'); } },3000);
+  </script>
+</body>
+</html>
